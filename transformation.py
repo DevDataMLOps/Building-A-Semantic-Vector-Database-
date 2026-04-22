@@ -15,32 +15,58 @@ GOLD_LAYER = "./data/gold"
 os.makedirs(GOLD_LAYER, exist_ok=True)
 
 # Load the silver layer into the pipeline
-silver_df = spark.read.parquet(SILVER_LAYER).limit(1000)
+silver_df = spark.read.parquet(SILVER_LAYER)
 
-def recursive_chunker(text): 
-    try:
-        if not text or len(str(text)) < 5: return []
+# def recursive_chunker(text): 
+#     try:
+#         if not text or len(str(text)) < 5: return []
             
-        text = str(text) # to ensure 
-        max_chars = 400
-        overlap = 50
-        separators = ["\n\n", "\n", ". ", " ", "", ","] # from largest to smallest order of preference in cutting
+#         text = str(text) # to ensure 
+#         max_chars = 400
+#         overlap = 50
+#         separators = ["\n\n", "\n", ". ", " ", "", ","] # from largest to smallest order of preference in cutting
         
+#         chunks = []
+#         start = 0
+#         while start < len(text):
+#             end = min(start + max_chars, len(text))
+#             if end < len(text):
+#                 for sep in separators:
+#                     last_sep = text.rfind(sep, start, end)
+#                     if last_sep != -1 and last_sep > start:
+#                         end = last_sep + len(sep)
+#                         break
+#             chunks.append(text[start:end].strip())
+#             start = end - overlap if end < len(text) else end
+#         return [c for c in chunks if len(c) > 10]
+#     except Exception:
+#         return [] # In case of any unexpected error, return empty list to avoid crashing the pipeline
+
+def recursive_chunker(text):
+    try:
+        if not text: return []
+        text = str(text).strip()
+        if len(text) < 10: return []
+        
+        words = text.split() 
         chunks = []
-        start = 0
-        while start < len(text):
-            end = min(start + max_chars, len(text))
-            if end < len(text):
-                for sep in separators:
-                    last_sep = text.rfind(sep, start, end)
-                    if last_sep != -1 and last_sep > start:
-                        end = last_sep + len(sep)
-                        break
-            chunks.append(text[start:end].strip())
-            start = end - overlap if end < len(text) else end
-        return [c for c in chunks if len(c) > 10]
+        
+        chunk_size = 60 
+        overlap = 10    
+        
+        step = chunk_size - overlap
+        if step <= 0: step = chunk_size
+        
+        for i in range(0, len(words), step):
+            chunk_string = " ".join(words[i : i + chunk_size])
+            
+            if len(chunk_string) > 10:
+                chunks.append(chunk_string)
+                
+        return chunks
+        
     except Exception:
-        return [] # In case of any unexpected error, return empty list to avoid crashing the pipeline
+        return []
     
 # Finally register the recursive chunker fucntion as a udf in pyspark
 chunk_udf = udf(recursive_chunker, ArrayType(StringType()))
@@ -72,7 +98,7 @@ fact_vectors = silver_df.repartition(20).withColumn("review_chunk", explode(chun
         "rating",
         "review_chunk"
     )
-fact_vectors.write.mode("overwrite").parquet("data/gold/fact_vectors")
+fact_vectors.coalesce(1).write.mode("overwrite").parquet("data/gold/fact_vectors")
 print(f"Added {fact_vectors.count()} unique users to dim_users table.")
 
 print("Gold Layer Finished: 3 Tables ready for Database Loading.")
