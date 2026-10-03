@@ -1,5 +1,5 @@
 venv
-data/*
+data/bronze
 .gitignore
 __pycache__/
 .dockerignore
