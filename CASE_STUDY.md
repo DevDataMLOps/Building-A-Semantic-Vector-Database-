@@ -2,7 +2,7 @@
 
 A self-directed 10Alytics data engineering case study. You are not building this pipeline, and you will not run it. You are reviewing it, the way a senior engineer reviews code they have just inherited.
 
-Explore the pipeline interactively: [AeroMart pipeline explorer](https://your-project.vercel.app)
+Explore the pipeline interactively: [AeroMart pipeline explorer](https://illustrated-learning-de.vercel.app/smenatics/index.html)
 
 ## The scenario
 
@@ -71,9 +71,7 @@ Useful Copilot features: Copilot Chat with a file added as context, the `/explai
 | `demo.ipynb` | Exploratory notebook that runs the same logic on a 200 row sample. |
 | `requirements.txt` | Python dependencies. |
 | `Dockerfile` | **Out of scope.** Ignore it for this project. |
-| `deliverables/` | Templates for your written work. Not part of the pipeline. |
-| `site/` | Source of the pipeline explorer website. Not part of the pipeline, and out of scope. |
-| `.github/` | The pull request template you will use at each checkpoint. |
+
 
 ## Know the data
 
