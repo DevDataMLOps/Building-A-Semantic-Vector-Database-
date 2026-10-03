@@ -52,6 +52,30 @@
   - `load_gold.py:18-25` — model is referenced but no offline-model packaging is shown.
   - `transformation.py:45-72` — naming/design mismatch for chunking.
 
+  During Step 3, Copilot also accelerated the design of candidate data-quality controls, but human review was necessary to remove unsupported assumptions, correct validation logic, distinguish current controls from future production gates, and prevent invented business thresholds.
+
+## Interaction 04 — Data Quality Control Design
+
+- Objective: Design Step 3 quality controls for the Silver, Gold, and vector layers based on the verified audit findings in `docs/AUDIT_REPORT.md`, without modifying the pipeline implementation.
+- Prompt: “Using the verified findings from the AeroMart audit, design candidate data-quality checks for the Silver, Gold, and final vector layers. Base the checks on the repository evidence and the audit report, with emphasis on required-field completeness, join retention, price semantics, duplicate detection, chunk validity, vector validity, and embedding dimension checks. Provide a professional quality-control specification and separate hard-fail integrity checks from monitoring checks. Do not assume the checks are currently implemented.”
+- Copilot Output Summary: Copilot generated a candidate specification with 10 core checks and 2 additional monitoring checks. The draft covered the expected areas: Silver completeness, price semantics, Bronze-to-Silver join retention, duplicate review detection, Gold uniqueness and aggregate validity, chunk completeness, lineage integrity, final embedding presence, and embedding dimensionality. The output also distinguished hard-fail checks from monitoring checks and marked thresholds requiring a baseline or SLA as `TBD — requires baseline/SLA`.
+- Human Verification: The first draft was not accepted automatically. The human reviewer checked each design against repository evidence and the audit decisions. Several candidate checks needed correction because they were over-asserting policies that the repository does not establish.
+- Corrections / Refinements:
+  - DQC-01: corrected to distinguish structurally required fields from business-completeness fields rather than hard-failing every selected Silver field.
+  - DQC-02: corrected because Silver cannot recover original NULL-price semantics after `coalesce(price, 0.0)`. Missing-price semantics must be measured or preserved before transformation.
+  - DQC-06: corrected so the rating domain is not inferred merely from the presence of the `rating` column.
+  - DQC-07: corrected because `(product_id, user_id, rating)` is not proven to uniquely identify a source review; null/blank `review_chunk` validation remains enforceable, but source-to-chunk reconciliation is limited until lineage IDs exist.
+  - DQC-08: reclassified as a future required production gate / current design gap because `review_id` and `chunk_id` do not currently exist.
+  - DQC-10: changed from a Python UDF validation to native Spark `F.size()` validation for embedding dimension checks.
+  - Unsupported numerical thresholds remained `TBD — requires baseline/SLA` instead of being invented from the repository.
+- Final Decision: The revised `docs/DATA_QUALITY_CHECKS.md` was accepted as the Step 3 data-quality design specification. The checks are proposed production controls, not claims that the current AeroMart pipeline implements them.
+- Evidence:
+  - `docs/DATA_QUALITY_CHECKS.md` — final Step 3 data-quality specification.
+  - `ingestion.py:14-22` — `coalesce(price, 0.0)` converts missing price semantics in Silver.
+  - `ingestion.py:28-34` — selected Silver fields include `rating` and other review columns, but do not establish a valid rating-domain contract by themselves.
+  - `transformation.py:45-72` — chunker behavior and the absence of stable review/chunk lineage.
+  - `load_gold.py:18-33` — embedding generation and vector output without dimension enforcement in the current code.
+
 ## Reviewer Reflection
 
 GitHub Copilot accelerated repository comprehension and candidate-finding generation significantly. It helped structure the review, summarize the end-to-end pipeline, and draft the formal audit report quickly. However, the human reviewer remained responsible for source-code verification, evidence discipline, and production-risk prioritization. In particular, Copilot-generated findings were not accepted without checking the actual repository code, and the final severity decisions required human judgment about what was a confirmed defect, what was a design gap, and what was merely an unverified risk. The result is a reviewer-controlled audit grounded in repository evidence and suitable for an AeroMart production-readiness review.
